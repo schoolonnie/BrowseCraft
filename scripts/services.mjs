@@ -1,4 +1,5 @@
 export const MCSCAN_BASE_URL = "https://api.mcscans.fi/public/v1/servers";
+export const MCSRVSTATUS_BASE_URL = "https://api.mcsrvstat.us/3/";
 
 async function convertToJson(res) {
 
@@ -25,9 +26,6 @@ async function convertToJson(res) {
 export async function get(url) {
   const res = await fetch(url, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
   });
 
   return convertToJson(res);

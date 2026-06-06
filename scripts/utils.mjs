@@ -1,18 +1,25 @@
-import { MCSCAN_BASE_URL, get } from "./services.mjs";
+import { get } from "./services.mjs";
 
-function ipList(serversURL) {
+export async function ipList(serversURL) {
     let list = "";
     let page = 1;
 
-    return get(serversURL + `?edition=java&page=${page}`).then((data) => {
-        while (page < 31) {
-            data.servers.forEach((server) => {
-            list += `${server.hostname}:${server.port}\n`;
-        });
-        page++;
+    while (page <= 10) {
+        console.log(`Fetching server list page ${page}...`);
+        try {
+            const data = await get(serversURL + `?edition=java&page=${page}`);
+            if (data.servers) {
+                data.servers.forEach((server) => {
+                    list += `${server.hostname}:${server.port}\n`;
+                });
+            }
+            page++;
+        } catch (error) {
+            console.error(`Error fetching page ${page}:`, error);
+            break;
         }
-        return list;
-    });
+    }
+    return list;
 }
 
 // Testing
