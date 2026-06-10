@@ -7,10 +7,16 @@ export async function ipList(serversURL) {
     while (page <= 10) {
         console.log(`Fetching server list page ${page}...`);
         try {
-            const data = await get(serversURL + `?edition=java&page=${page}`);
+            const data = await get(serversURL + `?sort=player&live=true&edition=Java&page=${page}`);
             if (data.servers) {
                 data.servers.forEach((server) => {
-                    list += `${server.hostname}:${server.port}\n`;
+                    const onlinePlayers = server.playerStats?.onlinePlayers ?? 0;
+                    const chinese = server.tags?.includes("China") || server.software?.toLowerCase().includes("china");
+                    const country = server.geolocation?.country;
+                    const isChina = country === "CN" || server.tags?.includes("China");
+                    if (onlinePlayers > 0 && !chinese && !isChina) {
+                        list += `${server.hostname}:${server.port}\n`;
+                    }
                 });
             }
             page++;
