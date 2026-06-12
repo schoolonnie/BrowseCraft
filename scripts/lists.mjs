@@ -135,15 +135,15 @@ function createServerElement(server) {
     const serverElement = document.createElement("div");
     serverElement.classList.add("server-entry");
 
-    const iconElement = document.createElement("img");
-    iconElement.src = server.icon || "../data/images/logo.png";
-    iconElement.alt = `${server.name} icon`;
-    iconElement.classList.add("server-icon");
-    iconElement.width = 64;
-    iconElement.height = 64;
-    iconElement.onerror = () => {
-        iconElement.src = "../data/images/logo.png";
-    };
+    //const iconElement = document.createElement("img");
+    //iconElement.src = server.icon || "../data/images/logo.png";
+    //iconElement.alt = `${server.name} icon`;
+    //iconElement.classList.add("server-icon");
+    //iconElement.width = 64;
+    //iconElement.height = 64;
+    //iconElement.onerror = () => {
+    //    iconElement.src = "../data/images/logo.png";
+    //};
 
     const infoElement = document.createElement("div");
     infoElement.classList.add("server-info");
@@ -178,7 +178,7 @@ function createServerElement(server) {
     }
     infoElement.appendChild(motdElement);
 
-    serverElement.appendChild(iconElement);
+    //serverElement.appendChild(iconElement);
     serverElement.appendChild(infoElement);
 
     return serverElement;
