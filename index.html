@@ -32,8 +32,16 @@
         </section>
     </header>
     <main>
-        <section class="user-actions">
-            <!-- Search bar and filter & surprise buttons will be generated here -->
+        <section id="user-actions">
+            <input type="text" id="search-bar" placeholder="Search servers...">
+            <select id="version-filter">
+                <option value="">All Versions</option>
+                <!-- Version options will be generated here -->
+            </select>
+            <select id="software-select" title="Filter by server software/type">
+                <option value="">All Types</option>
+                <!-- Software options will be generated here -->
+            </select>
         </section>
         <section id="server-list">
             <!-- Server cards will be generated here -->

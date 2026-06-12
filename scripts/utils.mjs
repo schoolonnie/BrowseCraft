@@ -1,13 +1,13 @@
 import { get } from "./services.mjs";
 
 export async function ipList(serversURL) {
-    let list = "";
+    const servers = [];
     let page = 1;
 
     while (page <= 10) {
         console.log(`Fetching server list page ${page}...`);
         try {
-            const data = await get(serversURL + `?sort=player&live=true&edition=Java&page=${page}`);
+            const data = await get(`${serversURL}?sort=player&live=true&edition=Java&geo=true&page=${page}`);
             if (data.servers) {
                 data.servers.forEach((server) => {
                     const onlinePlayers = server.playerStats?.onlinePlayers ?? 0;
@@ -15,7 +15,7 @@ export async function ipList(serversURL) {
                     const country = server.geolocation?.country;
                     const isChina = country === "CN" || server.tags?.includes("China");
                     if (onlinePlayers > 0 && !chinese && !isChina) {
-                        list += `${server.hostname}:${server.port}\n`;
+                        servers.push(server);
                     }
                 });
             }
@@ -25,7 +25,7 @@ export async function ipList(serversURL) {
             break;
         }
     }
-    return list;
+    return servers;
 }
 
 // Testing

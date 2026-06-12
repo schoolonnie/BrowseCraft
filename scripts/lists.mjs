@@ -1,5 +1,6 @@
-import { MCSCAN_BASE_URL, MCSRVSTATUS_BASE_URL, get } from "./services.mjs";
+import { MCSCAN_BASE_URL } from "./services.mjs";
 import { ipList } from "./utils.mjs";
+import { setupFilters } from "./actions.mjs";
 
 class ListEntry {
     constructor(name, address, players, maxPlayers, version, type, icon, motd, apiLink) {
@@ -15,6 +16,17 @@ class ListEntry {
     }
 }
 
+function resolveServerIcon(serverData) {
+    const rawIcon = serverData.favicon?.icon || serverData.icon;
+    if (typeof rawIcon !== "string" || !rawIcon.trim()) return null;
+    if (rawIcon.startsWith("data:")) return rawIcon;
+    const base64 = rawIcon.trim();
+    if (/^[A-Za-z0-9+/=]+$/.test(base64)) {
+        return `data:image/png;base64,${base64}`;
+    }
+    return null;
+}
+
 function createListEntry(serverData) {
     const address = serverData.hostname
         ? `${serverData.hostname}:${serverData.port}`
@@ -25,15 +37,19 @@ function createListEntry(serverData) {
     const name = serverData.hostname || address || "Unknown";
     const players = typeof serverData.players?.online === "number"
         ? serverData.players.online
-        : Array.isArray(serverData.players?.list)
-            ? serverData.players.list.length
-            : 0;
-    const maxPlayers = serverData.players?.max ?? 0;
+        : typeof serverData.playerStats?.onlinePlayers === "number"
+            ? serverData.playerStats.onlinePlayers
+            : Array.isArray(serverData.players?.list)
+                ? serverData.players.list.length
+                : 0;
+    const maxPlayers = serverData.players?.max ?? serverData.playerStats?.maxPlayers ?? 0;
     const version = serverData.version || serverData.protocol?.name || "Unknown";
-    const type = serverData.software || "Unknown";
-    const icon = serverData.icon || null;
-    const motd = serverData.motd?.clean?.join(" ") || serverData.motd?.raw?.join(" ") || "";
-    const apiLink = MCSRVSTATUS_BASE_URL + address;
+    const type = serverData.software || serverData.serverType || "Unknown";
+    const icon = resolveServerIcon(serverData);
+    const motd = typeof serverData.motd === "string"
+        ? serverData.motd
+        : serverData.motd?.clean?.join(" ") || serverData.motd?.raw?.join(" ") || "";
+    const apiLink = MCSCAN_BASE_URL;
 
     return new ListEntry(name, address, players, maxPlayers, version, type, icon, motd, apiLink);
 }
@@ -43,88 +59,145 @@ let defaultList = [];
 let liveList = [];
 
 console.log("lists.mjs loaded");
+let populateVersionFilter = null;
+let populateSoftwareFilter = null;
 
 async function pingIPS() {
     console.log("Starting pingIPS...");
-    const res = await ipList(MCSCAN_BASE_URL);
-    const ips = res.split('\n').filter(ip => ip.trim());
-    console.log(`Found ${ips.length} server IPs.`);
+    const servers = await ipList(MCSCAN_BASE_URL);
+    console.log(`Found ${servers.length} server entries.`);
 
-    const maxIpsToPing = 10; // keep this small while debugging
-    const ipsToPing = ips.slice(0, maxIpsToPing);
-    console.log(`Pinging ${ipsToPing.length} servers for now.`, ipsToPing);
+    const maxIpsToPing = 200; // limit for performance or testing
+    const serversToShow = servers.slice(0, maxIpsToPing);
+    console.log(`Rendering ${serversToShow.length} servers.`);
 
-    for (const ip of ipsToPing) {
+    rawIPList = serversToShow.map(server => `${server.hostname}:${server.port}`);
+
+    const seenMotds = new Set();
+
+    serversToShow.forEach(serverData => {
         try {
-            const serverData = await get(MCSRVSTATUS_BASE_URL + ip);
-            console.log(`Fetched status for ${ip}`);
             const listEntry = createListEntry(serverData);
 
             const hasVersion = listEntry.version && listEntry.version !== "Unknown";
 
+            const motdIsBlankOrDefault = !listEntry.motd || listEntry.motd.trim() === "" || listEntry.motd.toLowerCase() === "a minecraft server";
+
+            const motdAlreadySeen = seenMotds.has(listEntry.motd);
+
             if (hasVersion) {
-                defaultList.push(listEntry);
+                if (!motdIsBlankOrDefault && motdAlreadySeen) {
+                    console.log(`Skipping ${listEntry.address}: duplicate MOTD`, {
+                        motd: listEntry.motd,
+                        address: listEntry.address
+                    });
+                } else {
+                    defaultList.push(listEntry);
+                    renderEntry(listEntry);
+                    if (!motdIsBlankOrDefault) {
+                        seenMotds.add(listEntry.motd);
+                    }
+                    if (typeof populateVersionFilter === 'function') {
+                        populateVersionFilter();
+                    }
+                    if (typeof populateSoftwareFilter === 'function') {
+                        populateSoftwareFilter();
+                    }
+                }
             } else {
-                console.log(`Skipping ${ip}: missing version`, {
+                console.log(`Skipping ${listEntry.address}: missing version`, {
                     version: listEntry.version
                 });
             }
-
         } catch (error) {
-            console.error(`Error fetching data for ${ip}:`, error);
+            console.error(`Error processing server ${serverData.hostname}:${serverData.port}:`, error);
         }
-    }
+    });
 }
 
 function renderList(list) {
     const container = document.getElementById("server-list");
     container.innerHTML = "";
-
     list.forEach(server => {
-        const serverElement = document.createElement("div");
-        serverElement.classList.add("server-entry");
-
-        const iconElement = document.createElement("img");
-        iconElement.src = server.icon || "default-icon.png";
-        iconElement.alt = `${server.name} icon`;
-        iconElement.classList.add("server-icon");
-
-        const infoElement = document.createElement("div");
-        infoElement.classList.add("server-info");
-
-        const nameElement = document.createElement("h3");
-        nameElement.textContent = server.name;
-
-        const playersElement = document.createElement("p");
-        playersElement.textContent = `Players: ${server.players}/${server.maxPlayers}`;
-
-        const versionElement = document.createElement("p");
-        versionElement.textContent = `Version: ${server.version}`;
-
-        const typeElement = document.createElement("p");
-        typeElement.textContent = `Type: ${server.type}`;
-
-        const motdElement = document.createElement("p");
-        motdElement.textContent = `MOTD: ${server.motd}`;
-
-        infoElement.appendChild(nameElement);
-        infoElement.appendChild(playersElement);
-        infoElement.appendChild(versionElement);
-        infoElement.appendChild(typeElement);
-        infoElement.appendChild(motdElement);
-
-        serverElement.appendChild(iconElement);
-        serverElement.appendChild(infoElement);
-
-        container.appendChild(serverElement);
+        const entry = createServerElement(server);
+        container.appendChild(entry);
     });
 }
 
-// Fetch server data, then render the list once entries are available.
+function renderEntry(server) {
+    const container = document.getElementById("server-list");
+    if (!container) return;
+    const entry = createServerElement(server);
+    container.appendChild(entry);
+}
+
+function createServerElement(server) {
+    const serverElement = document.createElement("div");
+    serverElement.classList.add("server-entry");
+
+    const iconElement = document.createElement("img");
+    iconElement.src = server.icon || "../data/images/logo.png";
+    iconElement.alt = `${server.name} icon`;
+    iconElement.classList.add("server-icon");
+    iconElement.width = 64;
+    iconElement.height = 64;
+    iconElement.onerror = () => {
+        iconElement.src = "../data/images/logo.png";
+    };
+
+    const infoElement = document.createElement("div");
+    infoElement.classList.add("server-info");
+
+    const nameElement = document.createElement("h3");
+    nameElement.textContent = server.name;
+
+    const playersElement = document.createElement("p");
+    playersElement.textContent = `Players: ${server.players}/${server.maxPlayers}`;
+
+    const versionElement = document.createElement("p");
+    versionElement.textContent = `Version: ${server.version}`;
+
+    let typeElement = null;
+    if (server.type !== "Unknown") {
+        typeElement = document.createElement("p");
+        typeElement.textContent = `Type: ${server.type}`;
+    }
+
+    const motdElement = document.createElement("p");
+    if (server.motd.length > 100) {
+        motdElement.textContent = `MOTD: ${server.motd.substring(0, 100)}...`;
+    } else {
+        motdElement.textContent = `MOTD: ${server.motd}`;
+    }
+
+    infoElement.appendChild(nameElement);
+    infoElement.appendChild(playersElement);
+    infoElement.appendChild(versionElement);
+    if (typeElement) {
+        infoElement.appendChild(typeElement);
+    }
+    infoElement.appendChild(motdElement);
+
+    serverElement.appendChild(iconElement);
+    serverElement.appendChild(infoElement);
+
+    return serverElement;
+}
+
+const filters = setupFilters({ defaultList, renderList });
+if (filters) {
+    if (typeof filters.populateVersionFilter === 'function') populateVersionFilter = filters.populateVersionFilter;
+    if (typeof filters.populateSoftwareFilter === 'function') populateSoftwareFilter = filters.populateSoftwareFilter;
+}
+
+// Start pinging
 pingIPS().then(() => {
     console.log("pingIPS finished");
     liveList = defaultList;
+    // ensure final render and filter population
     renderList(defaultList);
+    if (typeof populateVersionFilter === 'function') populateVersionFilter();
+    if (typeof populateSoftwareFilter === 'function') populateSoftwareFilter();
     console.log(rawIPList);
     console.log(liveList);
 }).catch(error => {
