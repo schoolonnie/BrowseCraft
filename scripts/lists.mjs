@@ -46,9 +46,19 @@ function createListEntry(serverData) {
     const version = serverData.version || serverData.protocol?.name || "Unknown";
     const type = serverData.software || serverData.serverType || "Unknown";
     const icon = resolveServerIcon(serverData);
-    const motd = typeof serverData.motd === "string"
+    function cleanMotd(input) {
+        if (!input) return "";
+        const text = typeof input === 'string' ? input : Array.isArray(input) ? input.join(' ') : String(input);
+        let cleaned = text.replace(/§.\s*/g, '');
+        cleaned = cleaned.replace(/\$.\s*/g, '');
+        cleaned = cleaned.replace(/<[^>]+>/g, '');
+        cleaned = cleaned.replace(/\s{2,}/g, ' ');
+        return cleaned.trim();
+    }
+
+    const motd = cleanMotd(typeof serverData.motd === "string"
         ? serverData.motd
-        : serverData.motd?.clean?.join(" ") || serverData.motd?.raw?.join(" ") || "";
+        : serverData.motd?.clean?.join(" ") || serverData.motd?.raw?.join(" ") || "");
     const apiLink = MCSCAN_BASE_URL;
 
     return new ListEntry(name, address, players, maxPlayers, version, type, icon, motd, apiLink);
