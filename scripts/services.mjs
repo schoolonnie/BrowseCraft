@@ -1,5 +1,3 @@
-export const MCSCAN_BASE_URL = "https://api.mcscans.fi/public/v1/servers";
-
 async function convertToJson(res) {
 
   const responseText = await res.text();
@@ -30,7 +28,3 @@ export async function get(url) {
   return convertToJson(res);
 }
 
-// Testing
-//const mcscanTestResponse = await get(MCSCAN_BASE_URL + "?edition=java&page=1");
-//console.log(mcscanTestResponse);
-// End of testing

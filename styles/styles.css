@@ -62,7 +62,7 @@ main {
     margin: 0;
 }
 
-.server-entry {
+.server-card {
     background-color: var(--primary-text-color);
     color: var(--secondary-text-color);
     padding: 0.5rem;

@@ -1,0 +1,28 @@
+{
+    "servers": [
+        {
+            "id": 0,
+            "name": "Hypixel",
+            "ip": "mc.hypixel.net",
+            "version": "1.8.9+",
+            "icon": "../data/images/hypixel.webp",
+            "description": "The largest Minecraft server network, offering a variety of mini-games and activities."
+        },
+        {
+            "id": 1,
+            "name": "Wynncraft",
+            "ip": "play.wynncraft.com",
+            "version": "1.20.2+",
+            "icon": "../data/images/wynncraft.webp",
+            "description": "A unique Minecraft MMORPG server with custom quests, dungeons, and a large open world to explore."
+        },
+        {
+            "id": 2,
+            "name": "The Hive",
+            "ip": "play.hivemc.com",
+            "version": "1.21.130+",
+            "icon": "../data/images/hive.webp",
+            "description": "A well-known Minecraft server offering various mini-games and a friendly community."
+        }
+    ]
+}
