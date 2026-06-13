@@ -1,9 +1,9 @@
-import { MCSCAN_BASE_URL } from "./services.mjs";
-import { ipList } from "./utils.mjs";
+import { MCSTATUS_BASE_URL } from "./services.mjs";
+import { ipList, startBackgroundPing } from "./utils.mjs";
 import { setupFilters } from "./actions.mjs";
 
 class ListEntry {
-    constructor(name, address, players, maxPlayers, version, type, icon, motd, apiLink) {
+    constructor(name, address, players, maxPlayers, version, type, icon, motd, apiLink, playerList = []) {
         this.name = name;
         this.address = address;
         this.players = players;
@@ -13,6 +13,7 @@ class ListEntry {
         this.icon = icon;
         this.motd = motd;
         this.apiLink = apiLink;
+        this.playerList = playerList;
     }
 }
 
@@ -35,6 +36,7 @@ function createListEntry(serverData) {
             : "Unknown";
 
     const name = serverData.hostname || address || "Unknown";
+    const online = serverData.online !== false;
     const players = typeof serverData.players?.online === "number"
         ? serverData.players.online
         : typeof serverData.playerStats?.onlinePlayers === "number"
@@ -43,9 +45,14 @@ function createListEntry(serverData) {
                 ? serverData.players.list.length
                 : 0;
     const maxPlayers = serverData.players?.max ?? serverData.playerStats?.maxPlayers ?? 0;
-    const version = serverData.version || serverData.protocol?.name || "Unknown";
-    const type = serverData.software || serverData.serverType || "Unknown";
+    const version = serverData.online === false
+        ? "Offline"
+        : serverData.version || serverData.protocol?.name || "Unknown";
+    const type = serverData.online === false
+        ? "Offline"
+        : serverData.software || serverData.serverType || "Unknown";
     const icon = resolveServerIcon(serverData);
+
     function cleanMotd(input) {
         if (!input) return "";
         const text = typeof input === 'string' ? input : Array.isArray(input) ? input.join(' ') : String(input);
@@ -59,9 +66,10 @@ function createListEntry(serverData) {
     const motd = cleanMotd(typeof serverData.motd === "string"
         ? serverData.motd
         : serverData.motd?.clean?.join(" ") || serverData.motd?.raw?.join(" ") || "");
-    const apiLink = MCSCAN_BASE_URL;
+    const apiLink = `${MCSTATUS_BASE_URL}/${encodeURIComponent(serverData.hostname || serverData.ip || address)}`;
+    const playerList = Array.isArray(serverData.players?.list) ? serverData.players.list.map(p => (typeof p === 'string' ? p : (p.name || p.username || p.id || 'Unknown'))) : [];
 
-    return new ListEntry(name, address, players, maxPlayers, version, type, icon, motd, apiLink);
+    return new ListEntry(name, address, players, maxPlayers, version, type, icon, motd, apiLink, playerList);
 }
 
 let rawIPList = [];
@@ -74,7 +82,7 @@ let populateSoftwareFilter = null;
 
 async function pingIPS() {
     console.log("Starting pingIPS...");
-    const servers = await ipList(MCSCAN_BASE_URL);
+    const servers = await ipList(MCSTATUS_BASE_URL);
     console.log(`Found ${servers.length} server entries.`);
 
     const maxIpsToPing = 200; // limit for performance or testing
@@ -85,43 +93,49 @@ async function pingIPS() {
 
     const seenMotds = new Set();
 
+    // render skeleton entries immediately
     serversToShow.forEach(serverData => {
         try {
             const listEntry = createListEntry(serverData);
+            defaultList.push(listEntry);
+            renderEntry(listEntry);
+        } catch (error) {
+            console.error(`Error rendering skeleton for ${serverData.hostname}:`, error);
+        }
+    });
 
-            const hasVersion = listEntry.version && listEntry.version !== "Unknown";
+    // start background pinging for all addresses
+    const addresses = servers.map(s => s.hostname);
+    startBackgroundPing(addresses, MCSTATUS_BASE_URL, (serverData) => {
+        try {
+            const addr = serverData.hostname;
+            // find existing entry by hostname
+            const idx = defaultList.findIndex(entry => entry.address && entry.address.startsWith(`${addr}:`));
+            const listEntry = createListEntry(serverData);
 
-            const motdIsBlankOrDefault = !listEntry.motd || listEntry.motd.trim() === "" || listEntry.motd.toLowerCase() === "a minecraft server";
-
-            const motdAlreadySeen = seenMotds.has(listEntry.motd);
-
-            if (hasVersion) {
-                if (!motdIsBlankOrDefault && motdAlreadySeen) {
-                    console.log(`Skipping ${listEntry.address}: duplicate MOTD`, {
-                        motd: listEntry.motd,
-                        address: listEntry.address
-                    });
-                } else {
-                    defaultList.push(listEntry);
-                    renderEntry(listEntry);
-                    if (!motdIsBlankOrDefault) {
-                        seenMotds.add(listEntry.motd);
-                    }
-                    if (typeof populateVersionFilter === 'function') {
-                        populateVersionFilter();
-                    }
-                    if (typeof populateSoftwareFilter === 'function') {
-                        populateSoftwareFilter();
+            if (idx >= 0) {
+                const old = defaultList[idx];
+                defaultList[idx] = listEntry;
+                // update DOM element
+                const container = document.getElementById('server-list');
+                if (container) {
+                    const oldEl = container.querySelector(`[data-addr="${addr}"]`);
+                    if (oldEl) {
+                        const newEl = createServerElement(listEntry);
+                        container.replaceChild(newEl, oldEl);
                     }
                 }
             } else {
-                console.log(`Skipping ${listEntry.address}: missing version`, {
-                    version: listEntry.version
-                });
+                defaultList.push(listEntry);
+                renderEntry(listEntry);
             }
-        } catch (error) {
-            console.error(`Error processing server ${serverData.hostname}:${serverData.port}:`, error);
+            if (typeof populateVersionFilter === 'function') populateVersionFilter();
+            if (typeof populateSoftwareFilter === 'function') populateSoftwareFilter();
+        } catch (err) {
+            console.error('Error updating server from background ping:', err);
         }
+    }, () => {
+        console.log('Background pings complete');
     });
 }
 
@@ -144,25 +158,27 @@ function renderEntry(server) {
 function createServerElement(server) {
     const serverElement = document.createElement("div");
     serverElement.classList.add("server-entry");
-
-    //const iconElement = document.createElement("img");
-    //iconElement.src = server.icon || "../data/images/logo.png";
-    //iconElement.alt = `${server.name} icon`;
-    //iconElement.classList.add("server-icon");
-    //iconElement.width = 64;
-    //iconElement.height = 64;
-    //iconElement.onerror = () => {
-    //    iconElement.src = "../data/images/logo.png";
-    //};
+    serverElement.dataset.addr = server.address ? server.address.split(':')[0] : server.name;
 
     const infoElement = document.createElement("div");
     infoElement.classList.add("server-info");
+
+    // icon
+    const iconElement = document.createElement('img');
+    iconElement.classList.add('server-icon');
+    iconElement.width = 64;
+    iconElement.height = 64;
+    iconElement.alt = `${server.name} icon`;
+    iconElement.src = server.icon || server.favicon?.icon || 'data/images/logo.png';
+    iconElement.onerror = () => { iconElement.src = 'data/images/logo.png'; };
 
     const nameElement = document.createElement("h3");
     nameElement.textContent = server.name;
 
     const playersElement = document.createElement("p");
-    playersElement.textContent = `Players: ${server.players}/${server.maxPlayers}`;
+    const playerCount = (typeof server.players === 'number') ? server.players : (server.players?.online ?? 0);
+    const maxCount = server.maxPlayers ?? server.playerStats?.maxPlayers ?? 0;
+    playersElement.textContent = `Players: ${playerCount}/${maxCount}`;
 
     const versionElement = document.createElement("p");
     versionElement.textContent = `Version: ${server.version}`;
@@ -174,12 +190,15 @@ function createServerElement(server) {
     }
 
     const motdElement = document.createElement("p");
-    if (server.motd.length > 100) {
-        motdElement.textContent = `MOTD: ${server.motd.substring(0, 100)}...`;
+    if (server.online === false) {
+        motdElement.textContent = 'Server is offline or unreachable.';
+    } else if ((server.motd || '').length > 100) {
+        motdElement.textContent = `MOTD: ${String(server.motd).substring(0, 100)}...`;
     } else {
-        motdElement.textContent = `MOTD: ${server.motd}`;
+        motdElement.textContent = `MOTD: ${server.motd || ''}`;
     }
 
+    infoElement.appendChild(iconElement);
     infoElement.appendChild(nameElement);
     infoElement.appendChild(playersElement);
     infoElement.appendChild(versionElement);
@@ -188,7 +207,73 @@ function createServerElement(server) {
     }
     infoElement.appendChild(motdElement);
 
-    //serverElement.appendChild(iconElement);
+    // players list area (hidden by default)
+    const playersArea = document.createElement('div');
+    playersArea.classList.add('players-area');
+    playersArea.style.display = 'none';
+
+    const playersList = document.createElement('ul');
+    playersList.classList.add('players-list');
+
+    const pagination = document.createElement('div');
+    pagination.classList.add('players-pagination');
+
+    let currentPage = 1;
+    const perPage = 10;
+
+    function renderPlayersPage() {
+        playersList.innerHTML = '';
+        const list = Array.isArray(server.playerList) ? server.playerList : [];
+        const total = list.length;
+        const start = (currentPage - 1) * perPage;
+        const pageItems = list.slice(start, start + perPage);
+        if (pageItems.length === 0) {
+            const noPlayers = document.createElement('li');
+            noPlayers.textContent = server.online === false ? 'Server offline, no player list available.' : 'No player list available for this server.';
+            playersList.appendChild(noPlayers);
+        } else {
+            pageItems.forEach(p => {
+                const li = document.createElement('li');
+                li.textContent = typeof p === 'string' ? p : (p.name || p.username || String(p));
+                playersList.appendChild(li);
+            });
+        }
+        // pagination controls
+        pagination.innerHTML = '';
+        const prev = document.createElement('button');
+        prev.textContent = 'Prev';
+        prev.disabled = currentPage === 1 || total === 0;
+        prev.addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderPlayersPage(); }});
+        const next = document.createElement('button');
+        next.textContent = 'Next';
+        next.disabled = start + perPage >= total;
+        next.addEventListener('click', () => { if (start + perPage < total) { currentPage++; renderPlayersPage(); }});
+        const info = document.createElement('span');
+        info.textContent = total === 0 ? ' 0-0 of 0' : ` ${Math.min(total, start+1)}-${Math.min(total, start+perPage)} of ${total}`;
+        pagination.appendChild(prev);
+        pagination.appendChild(info);
+        pagination.appendChild(next);
+    }
+
+    playersArea.appendChild(playersList);
+    playersArea.appendChild(pagination);
+
+    const playersToggle = document.createElement('button');
+    playersToggle.textContent = 'View Players';
+    playersToggle.classList.add('players-toggle');
+    playersToggle.addEventListener('click', () => {
+        if (playersArea.style.display === 'none') {
+            playersArea.style.display = 'block';
+            currentPage = 1;
+            renderPlayersPage();
+        } else {
+            playersArea.style.display = 'none';
+        }
+    });
+
+    infoElement.appendChild(playersToggle);
+    infoElement.appendChild(playersArea);
+
     serverElement.appendChild(infoElement);
 
     return serverElement;

@@ -1,4 +1,4 @@
-export const MCSCAN_BASE_URL = "https://api.mcscans.fi/public/v1/servers";
+export const MCSTATUS_BASE_URL = "https://api.mcstatus.io/v2/status/java";
 
 async function convertToJson(res) {
 
@@ -23,10 +23,7 @@ async function convertToJson(res) {
 }
 
 export async function get(url) {
-  const res = await fetch(url, {
-    method: "GET",
-  });
-
+  const res = await fetch(url, { method: "GET" });
   return convertToJson(res);
 }
 
