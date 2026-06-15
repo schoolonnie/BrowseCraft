@@ -1,12 +1,12 @@
 import localData from "../data/json/servers.json" with { type: "json" };
 
-const HYPIXEL_API_KEY = "YOUR_HYPIXEL_API_KEY_HERE"; 
-const WYNN_API_TOKEN = "YOUR_WYNNCRAFT_API_TOKEN";
+import { getHypixel, getWynncraft, get, MOJANG_API_BASE_URL, HIVE_API_BASE_URL } from "./services.mjs";
+
 const serversContainer = document.getElementById("server-list");
 
 async function getPlayerUuid(username) {
     try {
-        const response = await fetch(`https://api.mojang.com/users/profiles/minecraft/${username}`);
+        const response = await fetch(`${MOJANG_API_BASE_URL}users/profiles/minecraft/${username}`);
     if (!response.ok) return null;
     
     const data = await response.json();
@@ -19,19 +19,8 @@ async function getPlayerUuid(username) {
 
 async function checkHypixel(uuid) {
     try {
-        const response = await fetch(`https://api.hypixel.net/status?uuid=${uuid}`, {
-        headers: { "API-Key": HYPIXEL_API_KEY }
-        });
-        const data = await response.json();
-
-        if (data.success && data.session) {
-        return {
-            online: data.session.online,
-            game: data.session.gameType || null,
-            map: data.session.map || null
-        };
-        }
-        return { online: false };
+        const response = await getHypixel({ uuid });
+        return response;
     } catch (error) {
         console.error("Hypixel API error:", error);
         return { online: false };
@@ -40,32 +29,10 @@ async function checkHypixel(uuid) {
 
 async function checkWynncraftV3(username) {
   try {
-    const response = await fetch("https://api.wynncraft.com/v3/player", {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${WYNN_API_TOKEN}`,
-        "Content-Type": "application/json"
-      }
-    });
-
-    if (!response.ok) {
-      console.error(`API Error: ${response.status}`);
-      return { online: false };
-    }
-
-    const data = await response.json();
-    
-    const isOnline = Object.keys(data.players || {}).some(
-      player => player.toLowerCase() === username.toLowerCase()
-    );
-
-    return {
-      online: isOnline,
-      totalPlayers: data.total || 0
-    };
-
+    const response = await getWynncraft({ username });
+    return response;
   } catch (error) {
-    console.error("Wynncraft API Request Failed:", error);
+    console.error("Wynncraft API error:", error);
     return { online: false };
   }
 }
@@ -81,7 +48,7 @@ async function trackPlayer(username, serverIp) {
     } 
     
     if (serverIp.includes("wynncraft.com")) {
-        return await checkWynncraft(username);
+        return await checkWynncraftV3(username);
     }
 
     return { error: "Standard MCStatus fallback needed for this server IP." };
@@ -93,7 +60,7 @@ function createServerCard(serverData) {
     card.className = "server-card";
 
     const iconImg = document.createElement("img");
-    iconImg.src = icon || "../data/images/logo.png";
+    iconImg.src = icon || "https://schoolonnie.github.io/BrowseCraft/data/images/logo.png";
     iconImg.alt = `${name} icon`;
     iconImg.width = 64;
     iconImg.height = 64;
@@ -124,24 +91,45 @@ function createServerCard(serverData) {
 }
 
 async function completeServerData(serverID) {
-    const serverAddress = localData.servers[serverID].ip;
-    const onlineData = await fetch(`https://api.mcstatus.io/v2/status/java/${serverAddress}`)
-        .then(res => res.json())
-        .catch(err => {
-            console.error(`Error fetching status for ${serverAddress}:`, err);
-            return null;
-        });
+    // Get the base server info from your local JSON file
+    const localServer = localData.servers[serverID];
+    const serverAddress = localServer.ip;
+    
+    let onlinePlayerCount = "Offline";
 
-    if (!onlineData) return null;
+    try {
+        if (serverID === 0) {
+            // Index 0: Hypixel
+            const data = await getHypixel("gameCounts");
+            onlinePlayerCount = data.player_count || 0;
+        } else if (serverID === 1) {
+            // Index 1: Wynncraft
+            const data = await getWynncraft();
+            onlinePlayerCount = data.players?.online || 0;
+        } else if (serverID === 2) {
+            // Index 2: Hive
+            const data = await get(HIVE_API_BASE_URL + "global/statistics");
+            
+            onlinePlayerCount = data.main_online || 0;
+        }
 
-    return {
-    name: localData.servers[serverID].name,
-    address: serverAddress,
-    version: localData.servers[serverID].version,
-    description: localData.servers[serverID].description,
-    playerCount: onlineData.players?.online || 0,
-    icon: localData.servers[serverID].icon || null
-};
+        console.log(`Data for index ${serverID} (${serverAddress}):`, onlinePlayerCount);
+
+        
+        return {
+            name: localServer.name,
+            address: serverAddress,
+            version: localServer.version || "1.20+",
+            description: localServer.description || "Minecraft Server",
+            playerCount: onlinePlayerCount,
+            icon: localServer.icon || null
+        };
+
+    } catch (error) {
+        console.error(`Failed to fetch online stats for ${serverAddress}:`, error);
+        
+        return null;
+    }
 }
 
 export async function loadServerList() {
