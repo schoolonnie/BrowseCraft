@@ -38,7 +38,8 @@ app.get('/api/wynncraft', async (req, res) => {
         const { username } = req.query;
         
         const targetUrl = username 
-            `https://api.wynncraft.com/v3/player`;
+            ? `https://wynncraft.com{username}`
+            : `https://api.wynncraft.com/v3/player`; 
         
         const fetchOptions = { method: "GET", headers: {} };
         if (username) {
