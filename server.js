@@ -1,9 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url'; 
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -51,7 +56,12 @@ app.get('/api/wynncraft', async (req, res) => {
     }
 });
 
-app.use(express.static('.'));
+app.use(express.static(__dirname));
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 app.listen(PORT, () => {
-    console.log(`🚀 Proxy server running at http://localhost:${PORT}`);
+    console.log(`🚀 Proxy server running on port ${PORT}`);
 });
