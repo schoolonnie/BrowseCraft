@@ -20,9 +20,9 @@ app.get('/api/hypixel', async (req, res) => {
         const { params } = req.query;
         if (!params) return res.status(400).json({ error: "Missing parameters" });
 
-        const response = await fetch(`https://hypixel.net{params}`, {
+        const response = await fetch(`https://api.hypixel.net/v2/${params}`, {
             method: "GET",
-            headers: { "API-Key": HYPIXEL_API_KEY }
+            headers: { "API-Key": process.env.HYPIXEL_API_KEY }
         });
         
         const data = await response.json();
@@ -38,8 +38,7 @@ app.get('/api/wynncraft', async (req, res) => {
         const { username } = req.query;
         
         const targetUrl = username 
-            ? `https://wynncraft.com{username}`
-            : `https://api.wynncraft.com/v3/player`;
+            `https://api.wynncraft.com/v3/player`;
         
         const fetchOptions = { method: "GET", headers: {} };
         if (username) {

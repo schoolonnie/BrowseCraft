@@ -1,5 +1,3 @@
-export const HYPIXEL_API_BASE_URL = "https://api.hypixel.net/v2/";
-export const WYNNCRAFT_API_BASE_URL = "https://api.wynncraft.com/v3/";
 export const HIVE_API_BASE_URL = "https://api.playhive.com/v0/"
 export const MOJANG_API_BASE_URL = "https://api.mojang.com/";
 export const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
