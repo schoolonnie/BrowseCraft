@@ -4,8 +4,7 @@ import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url'; 
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -58,7 +57,8 @@ app.get('/api/wynncraft', async (req, res) => {
 
 app.use(express.static(__dirname));
 
-app.get('*', (req, res) => {
+
+app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
