@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import 'dotenv/config';
 
 const app = express();
 const PORT = 3000;
@@ -7,8 +8,8 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 
-const HYPIXEL_API_KEY = "15a0ab09-5d4f-451e-8a9b-fb055d5351fc"; 
-const WYNN_API_TOKEN = "Xd_ot6NQZnC-MlaoFT26cyfYMZkv7mQx0Tc0ojr9-5A";
+const HYPIXEL_API_KEY = process.env.HYPIXEL_API_KEY; 
+const WYNN_API_TOKEN = process.env.WYNN_API_TOKEN;
 
 app.get('/api/hypixel', async (req, res) => {
     try {
@@ -50,6 +51,7 @@ app.get('/api/wynncraft', async (req, res) => {
     }
 });
 
+app.use(express.static('.'));
 app.listen(PORT, () => {
     console.log(`🚀 Proxy server running at http://localhost:${PORT}`);
 });
