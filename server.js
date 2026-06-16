@@ -14,6 +14,7 @@ app.use(express.json());
 
 const HYPIXEL_API_KEY = process.env.HYPIXEL_API_KEY; 
 const WYNN_API_TOKEN = process.env.WYNN_API_TOKEN;
+const MOJANG_API_TOKEN = process.env.MOJANG_API_KEY;
 
 app.get('/api/hypixel', async (req, res) => {
     try {
@@ -22,7 +23,7 @@ app.get('/api/hypixel', async (req, res) => {
 
         const response = await fetch(`https://api.hypixel.net/v2/${params}`, {
             method: "GET",
-            headers: { "API-Key": process.env.HYPIXEL_API_KEY }
+            headers: { "API-Key": HYPIXEL_API_KEY }
         });
         
         const data = await response.json();
@@ -52,6 +53,51 @@ app.get('/api/wynncraft', async (req, res) => {
     } catch (error) {
         console.error("Node Wynncraft Proxy Error:", error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/mojang', async (req, res) => {
+    try {
+        const { username, uuid } = req.query;
+
+        // Case A: A UUID was passed -> Do a Reverse Lookup to get the Username/Profile
+        if (uuid) {
+            const cleanUuid = uuid.replace(/-/g, '');
+
+            const response = await fetch(`https://api.minecraftservices.com/minecraft/profile/lookup/${encodeURIComponent(cleanUuid)}`);
+            
+            if (response.status === 204 || !response.ok) {
+                return res.status(404).json({ error: "Profile not found for this UUID" });
+            }
+
+            const data = await response.json();
+            return res.json(data); 
+        }
+
+        // Case B: A Username was passed -> Do a Forward Lookup to get the UUID
+        if (username) {
+            if (username === '[object Object]') {
+                return res.status(400).json({ error: "Invalid username parameter" });
+            }
+
+            const response = await fetch(`https://api.minecraftservices.com/minecraft/profile/lookup/name/${encodeURIComponent(username)}`, {
+                method: "GET",
+                headers: { "Content-Type": "application/json" }
+            });
+
+            if (response.status === 204 || !response.ok) {
+                return res.status(404).json({ error: "Player not found" });
+            }
+
+            const data = await response.json();
+            return data.id ? res.json(data) : res.status(404).json({ error: "Player not found" });
+        }
+
+        return res.status(400).json({ error: "Missing both username and uuid parameters" });
+
+    } catch (error) {
+        console.error("Node Mojang Proxy Error:", error);
+        return res.status(500).json({ error: error.message });
     }
 });
 

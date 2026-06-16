@@ -1,4 +1,3 @@
-export const HIVE_API_BASE_URL = "https://api.playhive.com/v0/"
 export const MOJANG_API_BASE_URL = "https://api.mojang.com/";
 export const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? "http://localhost:3000/api"
@@ -19,6 +18,36 @@ async function convertToJson(res) {
 export async function get(url) {
   const response = await fetch(url);
   return convertToJson(response);
+}
+
+export async function getMojang(username) {
+  try {
+    let cleanUsername = username;
+    if (typeof username === 'object' && username !== null) {
+      cleanUsername = username.name || username.username || '';
+    }
+
+    if (!cleanUsername || cleanUsername === '[object Object]') {
+      console.warn("getMojang blocked an invalid request object:", username);
+      return {};
+    }
+
+    const response = await fetch(`${BACKEND_URL}/mojang?username=${encodeURIComponent(cleanUsername)}`);
+    return convertToJson(response);
+  } catch (error) {
+    console.error("Mojang Name lookup error:", error);
+    throw error;
+  }
+}
+
+export async function getMojangProfileFromUuid(uuid) {
+  try {
+    const response = await fetch(`${BACKEND_URL}/mojang?uuid=${encodeURIComponent(uuid)}`);
+    return convertToJson(response);
+  } catch (error) {
+    console.error("Mojang UUID lookup error:", error);
+    throw error;
+  }
 }
 
 export async function getHypixel(parameters) {
