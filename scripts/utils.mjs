@@ -1,11 +1,39 @@
 import localData from "../data/json/servers.json" with { type: "json" };
-
+import { createServerCard } from "./renderApp.mjs";
 import { getHypixel, getWynncraft, getMojang, getMojangProfileFromUuid, get } from "./services.mjs";
 
 const serversContainer = document.getElementById("server-list");
 const globalPlayerCache = {};
 
-async function getPlayerUuid(username) {
+export async function copyToClipboard(text, button) {
+    try {
+        await navigator.clipboard.writeText(text);
+        console.log('Text successfully copied!');
+
+        const copySpan = document.createElement('span');
+        copySpan.id = 'copy-span';
+        copySpan.textContent = 'IP Copied!';
+        copySpan.style.color = 'green';
+        copySpan.classList.add('error-msg');
+            
+        if (!document.getElementById('copy-span')) {
+            button.insertAdjacentElement('afterend', copySpan);
+        }
+            
+        setTimeout(() => {
+            copySpan.classList.add('fade-out');
+        }, 4000);
+                
+        setTimeout(() => {
+            copySpan.remove();
+        }, 5000);
+                
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+    }
+}
+
+export async function getPlayerUuid(username) {
     try {
         if (!username || username === '[object Object]') return;
 
@@ -21,12 +49,12 @@ async function getPlayerUuid(username) {
     }
 }
 
-async function getPlayerFaceUrl(uuid) {
+export async function getPlayerFaceUrl(uuid) {
     if (!uuid) return null;
     return `https://minotar.net/helm/${uuid}/32.png`;
 }
 
-async function mapNamesToFaces(uuidList) {
+export async function mapNamesToFaces(uuidList) {
     const faceMap = {};
 
     const promises = uuidList.map(async (uuid) => {
@@ -61,7 +89,18 @@ async function mapNamesToFaces(uuidList) {
     await Promise.all(promises);
     return faceMap;
 }
-async function checkHypixel(uuid) {
+
+export function getPlayerBust(username) {
+        if (!username || username === '[object Object]') return null;
+        return `https://minotar.net/armor/bust/${username}/100.png`;
+}
+
+export function getPlayerBody(username) {
+        if (!username || username === '[object Object]') return null;
+        return `https://minotar.net/armor/body/${username}/100.png`;
+}
+
+export async function checkHypixel(uuid) {
     try {
         const response = await getHypixel({ uuid });
         return response;
@@ -71,7 +110,7 @@ async function checkHypixel(uuid) {
     }
 }
 
-async function checkWynncraftV3(username) {
+export async function checkWynncraftV3(username) {
   try {
     const response = await getWynncraft({ username });
     return response;
@@ -81,7 +120,7 @@ async function checkWynncraftV3(username) {
   }
 }
 
-async function trackPlayer(username, serverIp) {
+export async function trackPlayer(username, serverIp) {
     console.log(`Searching for ${username} on ${serverIp}...`);
     
     const uuid = await getPlayerUuid(username);
@@ -98,10 +137,11 @@ async function trackPlayer(username, serverIp) {
     return { error: "Standard MCStatus fallback needed for this server IP." };
 }
 
-function getUUIDList(serverID) {
+export function getUUIDList(serverID) {
     if (serverID === 0) {
         let playerList = [];
-        return getHypixel("housing/active").then(data => {
+        console.log("Hypixel is currently disabled");
+        /*return getHypixel("housing/active").then(data => {
             const maxSample = 50;
             for (const house of data.slice(0, maxSample)) {
                 if (house.owner) {
@@ -110,7 +150,7 @@ function getUUIDList(serverID) {
             }
             console.log("Hypixel player list sample:", playerList);
             return playerList;
-        });
+        });*/
     } else if (serverID === 1) {
         return getWynncraft().then(async (data) => {
             const maxSample = 50;
@@ -128,209 +168,7 @@ function getUUIDList(serverID) {
     } 
 }
 
-function createServerCard(serverData) {
-    const { ID, name, address, version, description, playerCount, icon } = serverData;
-    const card = document.createElement("div");
-    card.className = "server-card";
-
-    const iconImg = document.createElement("img");
-    iconImg.src = icon || "https://schoolonnie.github.io/BrowseCraft/data/images/logo.png";
-    iconImg.alt = `${name} icon`;
-    iconImg.width = 64;
-    iconImg.height = 64;
-    iconImg.className = "server-icon";
-    card.appendChild(iconImg);
-
-    const info = document.createElement("div");
-    info.className = "server-info";
-
-    const title = document.createElement("h3");
-    title.textContent = name;
-    info.appendChild(title);
-
-    const desc = document.createElement("p");
-    desc.textContent = description;
-    info.appendChild(desc);
-
-    const players = document.createElement("p");
-    players.textContent = `Players: ${playerCount}`;
-    info.appendChild(players);
-
-    const ver = document.createElement("p");
-    ver.textContent = `Version: ${version}`;
-    info.appendChild(ver);
-    card.appendChild(info);
-
-    // players list area (hidden by default)
-    const playersArea = document.createElement('div');
-    playersArea.classList.add('players-area');
-    playersArea.style.display = 'none';
-
-    const playersList = document.createElement('ul');
-    playersList.classList.add('players-list');
-
-    const pagination = document.createElement('div');
-    pagination.classList.add('players-pagination');
-
-    let currentPage = 1;
-    const perPage = 10;
-
-    let playerList = [];
-    
-    getUUIDList(ID)
-    .catch(error => {
-        console.error("Error fetching player list data:", error);
-        return []; 
-    })
-    .then(data => {
-        console.log(`Fetched player list for server ID ${ID}:`, data);
-
-        playerList = data;
-        
-        renderPlayersPage(data).catch(renderError => {
-            console.error("Error inside renderPlayersPage execution:", renderError);
-        });
-    });
-
-    async function renderPlayersPage(listInput) {
-        playersList.innerHTML = '';
-        pagination.innerHTML = '';
-
-        try {
-            const list = listInput instanceof Promise ? await listInput : (listInput || playerList || []);
-            console.log("DEBUG - Inside renderPlayersPage:", {
-                rawInput: listInput,
-                resolvedList: list,
-                isArray: Array.isArray(list),
-                detectedLength: list?.length
-            });
-
-            const total = list.length;
-
-            if (total === 0) {
-                const noPlayers = document.createElement('li');
-                noPlayers.textContent = 'No player list available for this server.';
-                playersList.appendChild(noPlayers);
-                renderPaginationControls(0, 0, 0); 
-                return;
-            }
-            const start = (currentPage - 1) * perPage;
-            const slicedUuids = list.slice(start, start + perPage);
-
-            const faceMap = await mapNamesToFaces(slicedUuids);
-
-            const pageItems = slicedUuids.map(uuid => faceMap[uuid] || uuid);
-
-            pageItems.forEach(item => {
-                const playerItem = document.createElement('li');
-
-                playerItem.style.display = 'flex';
-                playerItem.style.alignItems = 'center';
-                playerItem.style.gap = '10px';
-                playerItem.style.marginBottom = '8px';
-
-                let username = "Unknown Player";
-                let avatarUrl = "";
-
-                if (item && typeof item === 'object') {
-                    username = item.name;
-                    avatarUrl = item.avatarUrl;
-                } else if (typeof item === 'string') {
-                    avatarUrl = `https://minotar.net/${item}/32.png`;
-                }
-
-                if (avatarUrl) {
-                    const img = document.createElement('img');
-                    img.src = avatarUrl;
-                    img.alt = `${username}'s Face`;
-                    img.width = 32;
-                    img.height = 32;
-                    img.style.borderRadius = '4px';
-                    img.onerror = () => {
-                        img.style.display = 'none';
-                    };
-                    playerItem.appendChild(img);
-                }
-
-                const nameSpan = document.createElement('span');
-                nameSpan.textContent = username;
-                nameSpan.style.color = '#ffffff';
-                nameSpan.style.fontFamily = 'sans-serif';
-                playerItem.appendChild(nameSpan);
-
-                playersList.appendChild(playerItem);
-            });
-
-            renderPaginationControls(start, total, perPage, list);
-
-        } catch (error) {
-            console.error("Error rendering player page layout:", error);
-            const errorItem = document.createElement('li');
-            errorItem.textContent = 'Failed to load player avatars.';
-            playersList.appendChild(errorItem);
-        }
-    }
-
-function renderPaginationControls(start, total, perPage, list) {
-    pagination.innerHTML = '';
-
-    const prev = document.createElement('button');
-    prev.textContent = 'Prev';
-    prev.disabled = currentPage === 1 || total === 0;
-    prev.addEventListener('click', () => { 
-        if (currentPage > 1) { 
-            currentPage--; 
-            renderPlayersPage(list); 
-        }
-    });
-
-    const next = document.createElement('button');
-    next.textContent = 'Next';
-    next.disabled = start + perPage >= total;
-    next.addEventListener('click', () => { 
-        if (start + perPage < total) { 
-            currentPage++; 
-            renderPlayersPage(list); 
-        }
-    });
-
-    const info = document.createElement('span');
-    if (total === 0) {
-        info.textContent = ' 0-0 of 0';
-    } else {
-        const displayStart = start + 1;
-        const displayEnd = Math.min(total, start + perPage);
-        info.textContent = ` ${displayStart}-${displayEnd} of ${total}`;
-    }
-
-    pagination.appendChild(prev);
-    pagination.appendChild(info);
-    pagination.appendChild(next);
-}
-
-
-    playersArea.appendChild(playersList);
-    playersArea.appendChild(pagination);
-
-    const playersToggle = document.createElement('button');
-    playersToggle.textContent = 'View Players';
-    playersToggle.classList.add('players-toggle');
-    playersToggle.addEventListener('click', () => {
-        if (playersArea.style.display === 'none') {
-            playersArea.style.display = 'block';
-            currentPage = 1;
-            renderPlayersPage();
-        } else {
-            playersArea.style.display = 'none';
-        }
-    });
-
-    info.appendChild(playersToggle);
-    info.appendChild(playersArea);
-    return card
-}
-
-async function completeServerData(serverID) {
+export async function completeServerData(serverID) {
     const localServer = localData.servers[serverID];
     const serverAddress = localServer.ip;
     
@@ -339,8 +177,10 @@ async function completeServerData(serverID) {
     try {
         if (serverID === 0) {
             // Index 0: Hypixel
+            /*
             const data = await getHypixel("counts");
             onlinePlayerCount = data.playerCount || 0;
+            */
         } else if (serverID === 1) {
             // Index 1: Wynncraft
             const data = await getWynncraft();
@@ -367,7 +207,7 @@ async function completeServerData(serverID) {
 }
 
 export async function loadServerList() {
-    const serverIndex = [0,1];
+    const serverIndex = [1];
     for (const index of serverIndex) {
         try {
             const serverData = await completeServerData(index);

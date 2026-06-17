@@ -63,11 +63,118 @@ main {
 }
 
 .server-card {
-    background-color: var(--primary-text-color);
-    color: var(--secondary-text-color);
+    background-image: url('../data/images/stone.png');
+    background-repeat: repeat;
+    background-size: 64px 64px;
     padding: 0.5rem;
     margin-bottom: 0.5rem;
     border-radius: 4px;
+}
+
+.server-card img {
+    border-radius: 4px;
+}
+
+.server-info {
+    background-color: rgba(0, 0, 0, 0.8);
+    color: var(--secondary-text-color);
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-family: "Press Start 2P", system-ui;
+}
+
+.server-info input {
+    margin: 1rem 0;
+}
+
+.server-info button {
+    cursor: pointer;
+}
+
+#search-bar {
+    background-color: var(--primary-text-color);
+    color: var(--secondary-text-color);
+}
+
+#search-btn {
+    background-color: var(--primary-text-color);
+    color: var(--secondary-text-color);
+}
+
+.players-list {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0 0;
+}
+
+.players-list li {
+    font-family: "Press Start 2P", system-ui;
+    font-size: 0.75rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    margin: 0.25rem 0;
+    padding: 0.25rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.players-list li span {
+    font-family: "Press Start 2P", system-ui;
+    font-size: 0.75rem;
+}
+
+.players-list li img {
+    position: relative;
+    bottom: 0;
+}
+
+.player-card {
+    height: max-content;
+    display: flex;
+    flex-direction: column;
+}
+
+#searched-card {
+    cursor: default;
+}
+
+.copy-btn {
+    background-color: var(--secondary-text-color);
+    border: none;
+    padding-top: 2px;
+    padding-left: 2px;
+    margin: 0;
+    width: 20px;
+    height: 20px;
+}
+
+.players-toggle {
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.players-pagination button {
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+/* Animations */
+.error-msg {
+    color: #ff3333;
+    opacity: 1;
+    transition: opacity 1.0s ease;
+    margin-left: 10px;
+}
+
+.error-msg.fade-out {
+    opacity: 0;
 }
 
 /* Footer */

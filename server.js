@@ -39,13 +39,13 @@ app.get('/api/wynncraft', async (req, res) => {
         const { username } = req.query;
         
         const targetUrl = username 
-            ? `https://wynncraft.com{username}`
+            ? `https://api.wynncraft.com/v3/player/${encodeURIComponent(username)}`
             : `https://api.wynncraft.com/v3/player`; 
         
         const fetchOptions = { method: "GET", headers: {} };
-        if (username) {
+        /*if (username) {
             fetchOptions.headers["Authorization"] = `Bearer ${WYNN_API_TOKEN}`;
-        }
+        }*/
 
         const response = await fetch(targetUrl, fetchOptions);
         const data = await response.json();
