@@ -62,7 +62,7 @@ export function renderPlayerCard(player, search) {
         if (searchBar) {
             const errorSpan = document.createElement('span');
             errorSpan.id = 'error-span';
-            if (searchBar.textContent === "") {
+            if (searchBar.value === "") {
                 errorSpan.textContent = 'Please enter a username';
             } else {
                 errorSpan.textContent = ` ${player} could not be found in Wynncraft's player data!`;
