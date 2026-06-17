@@ -35,7 +35,7 @@ export function renderPlayerCard(player, search, targetContainer) {
                 <img src="${getPlayerBust(player)}" alt="${player}'s Bust" class="bust-image">
                 <div class="stats-text-block">
                     <p class="username">Username: ${player}</p>
-                    <p class="rank">Wynncraft Rank: ${stats.rank || 'N/A'}</p>
+                    <p class="online">Is Online: ${stats.online || 'false'}</p>
                     <p class="first-join">First Joined: ${stats.firstJoin ? new Date(stats.firstJoin).toLocaleDateString() : 'N/A'}</p>
                     <p class="playtime">Total Playtime: ${stats.playtime !== undefined ? stats.playtime + ' hours' : 'N/A'}</p>
                     <p class="chests-opened">Chests Opened: ${stats.globalData.chestsFound || 'N/A'}</p>
@@ -49,8 +49,13 @@ export function renderPlayerCard(player, search, targetContainer) {
         `;
         if (search === 1) {
             thisCard.innerHTML = `
-                <p>Search Result:<p>
-            ` + cardHtmlString;
+                <div class="search-header-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <p style="margin: 0;">Search Result:</p>
+                    <!-- Explicit identifier class added for targeted DOM manipulation -->
+                    <button class="fav-button search-fav-btn" style="background: transparent; border: none; cursor: pointer; padding: 0;"></button>
+                </div>
+                ${cardHtmlString}
+            `;
         } else if (search == 0) {
             thisCard.innerHTML = cardHtmlString;
         }
@@ -69,6 +74,60 @@ export function renderPlayerCard(player, search, targetContainer) {
             } else {
                 console.error("Could not find #players-list");
             }
+
+            const searchFavBtn = thisCard.querySelector('.search-fav-btn');
+            if (searchFavBtn) {
+                const favImg = document.createElement('img');
+                favImg.width = 32;
+                favImg.height = 32;
+
+                if (localStorage.getItem(player) !== null) {
+                    favImg.src = "./data/images/favorited.png";
+                    favImg.alt = "favorited icon";
+                } else {
+                    favImg.src = "./data/images/favorite.png";
+                    favImg.alt = "favorite icon";
+                }
+                searchFavBtn.appendChild(favImg);
+
+                searchFavBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+
+                    if (localStorage.getItem(player) !== null) {
+                        localStorage.removeItem(player);
+                        console.log(`removed ${player} from favorites`);
+                        favImg.src = "./data/images/favorite.png";
+                        favImg.alt = "favorite icon"; 
+                    } else {
+                        localStorage.setItem(player, "true");
+                        console.log(`added ${player} to favorites`);
+                        favImg.src = "./data/images/favorited.png";
+                        favImg.alt = "favorited icon";
+
+                        if (typeof window.globalPlayerCache === 'object' && !window.globalPlayerCache[player]) {
+                            window.globalPlayerCache[player] = {
+                                name: player,
+                                avatarUrl: `https://minotar.net/helm/${player}/32.png`,
+                                UUID: player
+                            };
+                        }
+
+                        if (Array.isArray(window.playerList)) {
+                            window.playerList.unshift(player); 
+
+                            window.playerList = [...new Set(window.playerList)];
+                        }
+                    }
+
+                    if (window.currentPage !== undefined) {
+                        window.currentPage = 1;
+                    }
+
+                    if (typeof window.renderPlayersPage === 'function') {
+                        window.renderPlayersPage();
+                    }
+                });
+            }
         }
 
     }).catch(error => {
@@ -77,10 +136,12 @@ export function renderPlayerCard(player, search, targetContainer) {
         if (searchBar) {
             const errorSpan = document.createElement('span');
             errorSpan.id = 'error-span';
-            if (searchBar.value === "") {
-                errorSpan.textContent = 'Please enter a username';
+            if (player === "Unknown Player" || localStorage.getItem(player) !== null) {
+                errorSpan.textContent = "Player is currently offline or data could not be loaded from Wynncraft.";
+            } else if (searchBar.value === "") {
+                errorSpan.textContent = "Please enter a username";
             } else {
-                errorSpan.textContent = ` ${player} could not be found in Wynncraft's player data!`;
+                errorSpan.textContent = `${player} could not be found in Wynncraft's player data!`;
             }
             
             errorSpan.style.color = 'red';

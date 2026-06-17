@@ -1,4 +1,4 @@
-import { getUUIDList, mapNamesToFaces, copyToClipboard } from "./utils.mjs";
+import { getUUIDList, getNameList, mapNamesToFaces, copyToClipboard, globalPlayerCache } from "./utils.mjs";
 import { renderPlayerCard } from "./renderPlayerCard.mjs";
 
 export function createServerCard(serverData) {
@@ -74,8 +74,21 @@ export function createServerCard(serverData) {
     const perPage = 10;
 
     let playerList = [];
+
+    Object.keys(localStorage).forEach(key => {
+        if (key !== 'fav_uuid_undefined' && localStorage.getItem(key) === 'true') {
+            
+            if (!globalPlayerCache[key]) {
+                globalPlayerCache[key] = {
+                    name: key,
+                    avatarUrl: `https://minotar.net/helm/${key}/32.png`,
+                    UUID: key
+                };
+            }
+        }
+    });
     
-    getUUIDList(ID)
+    getNameList()
     .catch(error => {
         console.error("Error fetching player list data:", error);
         return []; 
@@ -83,9 +96,26 @@ export function createServerCard(serverData) {
     .then(data => {
         console.log(`Fetched player list for server ID ${ID}:`, data);
 
-        playerList = data;
+        const savedFavorites = Object.keys(localStorage).filter(key => 
+            key !== 'fav_uuid_undefined' && localStorage.getItem(key) === 'true'
+        );
+
+        const offlineFavorites = savedFavorites.filter(favName => {
+            return !data.some(onlineUuid => {
+                const cachedProfile = globalPlayerCache[onlineUuid];
+                return cachedProfile && cachedProfile.name === favName;
+            });
+        });
+
+        playerList = [...offlineFavorites, ...data];
+
+        window.renderPlayersPage = () => renderPlayersPage(playerList);
+        window.playerList = playerList;
+        window.globalPlayerCache = globalPlayerCache;
+
+        window.currentPage = currentPage;
         
-        renderPlayersPage(data).catch(renderError => {
+        renderPlayersPage(playerList).catch(renderError => {
             console.error("Error inside renderPlayersPage execution:", renderError);
         });
     });
@@ -112,15 +142,47 @@ export function createServerCard(serverData) {
                 renderPaginationControls(0, 0, 0); 
                 return;
             }
+
+            list.sort((a, b) => {
+                const idA = (a && typeof a === 'object') ? (a.uuid || a.id || a.UUID) : a;
+                const idB = (b && typeof b === 'object') ? (b.uuid || b.id || b.UUID) : b;
+
+                const cachedA = globalPlayerCache[idA] || globalPlayerCache[a];
+                const cachedB = globalPlayerCache[idB] || globalPlayerCache[b];
+
+                const nameA = cachedA ? cachedA.name : String(a);
+                const nameB = cachedB ? cachedB.name : String(b);
+
+                const isFavA = localStorage.getItem(nameA) !== null;
+                const isFavB = localStorage.getItem(nameB) !== null;
+
+                if (isFavA && !isFavB) return -1;
+                if (!isFavA && isFavB) return 1;
+                return 0;
+            });
+
             const start = (currentPage - 1) * perPage;
             const slicedUuids = list.slice(start, start + perPage);
 
             const faceMap = await mapNamesToFaces(slicedUuids);
-
             const pageItems = slicedUuids.map(uuid => faceMap[uuid] || uuid);
+
+            pageItems.sort((a, b) => {
+                const nameA = (a && typeof a === 'object') ? a.name : String(a);
+                const nameB = (b && typeof b === 'object') ? b.name : String(b);
+
+                const isFavA = localStorage.getItem(nameA) !== null;
+                const isFavB = localStorage.getItem(nameB) !== null;
+
+                if (isFavA && !isFavB) return -1;
+                if (!isFavA && isFavB) return 1;
+                return 0;
+            });
 
             pageItems.forEach(item => {
                 const playerItem = document.createElement('li');
+                const headerRow = document.createElement('div');
+                headerRow.classList.add('player-header-row');
 
                 playerItem.style.display = 'flex';
                 playerItem.style.alignItems = 'center';
@@ -136,6 +198,7 @@ export function createServerCard(serverData) {
                     avatarUrl = item.avatarUrl;
                 } else if (typeof item === 'string') {
                     avatarUrl = `https://minotar.net/${item}/32.png`;
+                    currentUuid = item;
                 }
 
                 if (avatarUrl) {
@@ -148,26 +211,63 @@ export function createServerCard(serverData) {
                     img.onerror = () => {
                         img.style.display = 'none';
                     };
-                    playerItem.appendChild(img);
+                    headerRow.appendChild(img);
                 }
 
                 playerItem.id = `${username}-card`;
 
-                const nameP = document.createElement('p');
+                const nameP = document.createElement('span');
                 nameP.textContent = username;
-                playerItem.appendChild(nameP);
+                headerRow.appendChild(nameP);
 
+                const favButton = document.createElement('button');
+                favButton.classList.add('fav-button');
+
+                const favImg = document.createElement('img');
+                favImg.width = 32;
+                favImg.height = 32;
+                if (localStorage.getItem(username) !== null) {
+                    favImg.src = "./data/images/favorited.png";
+                    favImg.alt = "favorited icon";
+                } else {
+                    favImg.src = "./data/images/favorite.png";
+                    favImg.alt = "favorite icon";
+                }
+
+                favButton.appendChild(favImg);
+
+                const playerUuid = (item && typeof item === 'object') ? (item.uuid || item.id) : slicedUuids[pageItems.indexOf(item)];
+
+                favButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+
+                    if (localStorage.getItem(username) !== null) {
+                        localStorage.removeItem(username);
+                        console.log(`removed ${username} from favorites`);
+                        favImg.src = "./data/images/favorite.png";
+                        favImg.alt = "favorite icon"; 
+                    } else {
+                        localStorage.setItem(username, "true");
+                        console.log(`added ${username} to favorites`);
+                        favImg.src = "./data/images/favorited.png";
+                        favImg.alt = "favorited icon";
+                    }
+
+                    renderPlayersPage(list);
+                });
+
+                headerRow.appendChild(favButton);
+                playerItem.appendChild(headerRow);
                 playersList.appendChild(playerItem);
 
                 playerItem.classList.add('not-showing');
 
                 const noCardListing = playerItem.innerHTML; // Store the original content to revert back to if needed
 
-                playerItem.addEventListener('click', (e) => {
-                    if (e.target !== playerItem && !playerItem.querySelector('.stats-content')?.contains(e.target)) {
+                headerRow.addEventListener('click', (e) => {
+                    if (favButton.contains(e.target)) {
                         return;
                     }
-
                     let statsContent = playerItem.querySelector('.stats-content');
                     
                     if (!statsContent) {
@@ -175,11 +275,8 @@ export function createServerCard(serverData) {
                         statsContent.classList.add('stats-content', 'not-showing');
                         playerItem.appendChild(statsContent);
 
-                        playerItem.classList.remove('not-showing');
-                        playerItem.classList.add('showing');
-                        
                         renderPlayerCard(username, 0, statsContent);
-                        
+
                         setTimeout(() => {
                             statsContent.classList.remove('not-showing');
                             statsContent.classList.add('showing');
@@ -188,12 +285,10 @@ export function createServerCard(serverData) {
                     } else if (statsContent.classList.contains('showing')) {
                         statsContent.classList.remove('showing');
                         statsContent.classList.add('not-showing');
-                        playerItem.classList.remove('showing');
-                        
+
                         setTimeout(() => {
                             statsContent.remove();
-                            playerItem.classList.add('not-showing');
-                        }, 400); 
+                        }, 400);
                     }
                 });
             });

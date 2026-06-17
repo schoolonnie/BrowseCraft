@@ -108,13 +108,16 @@ main {
 }
 
 .players-list li {
+    display: flex;
+    flex-direction: column;
     font-family: "Press Start 2P", system-ui;
     font-size: 0.75rem;
     background-color: rgba(255, 255, 255, 0.1);
     margin: 0.25rem 0;
-    padding: 0.25rem;
+    padding: 0.5rem;
     border-radius: 4px;
-    cursor: pointer;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .players-list li span {
@@ -122,16 +125,36 @@ main {
     font-size: 0.75rem;
 }
 
+.player-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; 
+    width: 100%;
+    cursor: pointer;
+}
+
+.player-header-row span {
+    flex-grow: 1;
+    text-align: center;
+}
+
 .player-card {
     display: flex;
     flex-direction: column;
+}
+
+.not-showing {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%; 
 }
 
 .showing {
     display: flex;
     flex-wrap: wrap;
     align-items: center; 
-    justify-content: flex-start; 
+    justify-content: space-between; 
 }
 
 .stats-content {
@@ -148,6 +171,11 @@ main {
     align-items: center;  
     text-align: center; 
     width: 100%;
+    border-top: solid var(--secondary-text-color) 2px;
+}
+
+.bust-image {
+    margin-top: 1rem;
 }
 
 #searched-card {
@@ -171,6 +199,13 @@ main {
 
 .copy-msg {
     margin: 1rem;
+}
+
+.fav-button {
+    position: relative;
+    background: transparent;
+    border: none;
+    cursor: pointer;
 }
 
 .players-toggle {
@@ -204,8 +239,12 @@ main {
 }
 
 .stats-content {
-    display: block;
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
     overflow: hidden;
     transition: max-height 0.4s ease-in-out, opacity 0.4s ease-in-out;
 }

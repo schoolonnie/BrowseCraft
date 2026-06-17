@@ -3,7 +3,7 @@ import { createServerCard } from "./renderApp.mjs";
 import { getHypixel, getWynncraft, getMojang, getMojangProfileFromUuid, get } from "./services.mjs";
 
 const serversContainer = document.getElementById("server-list");
-const globalPlayerCache = {};
+export const globalPlayerCache = {};
 
 export async function copyToClipboard(text, button) {
     try {
@@ -54,35 +54,53 @@ export async function getPlayerFaceUrl(uuid) {
     return `https://minotar.net/helm/${uuid}/32.png`;
 }
 
-export async function mapNamesToFaces(uuidList) {
+export async function mapNamesToFaces(inputList) {
     const faceMap = {};
 
-    const promises = uuidList.map(async (uuid) => {
-        if (globalPlayerCache[uuid]) {
-            faceMap[uuid] = globalPlayerCache[uuid];
-            return uuid;
+    const promises = inputList.map(async (item) => {
+        if (!item) return;
+
+        const identifier = typeof item === 'object' ? (item.UUID || item.uuid || item.id || item.name) : item;
+
+        if (globalPlayerCache[identifier]) {
+            faceMap[identifier] = globalPlayerCache[identifier];
+            return;
         }
 
-        try {
-            const data = await getMojangProfileFromUuid(uuid);
-            
-            if (!data || (!data.name && !data.username)) {
-            throw new Error("Mojang lookup failed");
-        }
-            
+        const isUuid = /[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}/i.test(identifier) || identifier.length > 16;
+
+        if (!isUuid) {
             const profile = {
-                name: data.name || data.username || "Unknown Player",
-                avatarUrl: `https://minotar.net/helm/${uuid}/32.png`
-            };
+                name: identifier,
+                avatarUrl: `https://minotar.net/helm/${identifier}/32.png`,
+                UUID: identifier 
+            }
+            globalPlayerCache[identifier] = profile;
+            faceMap[identifier] = profile;
+        } else {
+            try {
+                const data = await getMojangProfileFromUuid(identifier);
+                
+                if (!data || (!data.name && !data.username)) {
+                    throw new Error("Mojang lookup failed");
+                }
+                
+                const profile = {
+                    name: data.name || data.username || "Unknown Player",
+                    avatarUrl: `https://minotar.net/helm/${identifier}/32.png`,
+                    UUID: identifier
+                };
 
-            globalPlayerCache[uuid] = profile;
-            faceMap[uuid] = profile;
-            
-        } catch (error) {
-            faceMap[uuid] = {
-                name: "Unknown Player",
-                avatarUrl: `https://minotar.net/helm/${uuid}/32.png`
-            };
+                globalPlayerCache[identifier] = profile;
+                faceMap[identifier] = profile;
+                
+            } catch (error) {
+                faceMap[identifier] = {
+                    name: "Unknown Player",
+                    avatarUrl: `https://minotar.net/helm/${identifier}/32.png`,
+                    UUID: identifier
+                };
+            }
         }
     });
 
@@ -137,6 +155,19 @@ export async function trackPlayer(username, serverIp) {
     return { error: "Standard MCStatus fallback needed for this server IP." };
 }
 
+export function getNameList() {
+    return getWynncraft().then(async (data) => {
+            const maxSample = 500;
+            let playersArray = [];
+
+            if (data && data.players) {
+                const playerNames = Object.keys(data.players).slice(0, maxSample);
+                playersArray = playerNames;
+            }
+            console.log("Wynncraft player list sample:", playersArray);
+            return playersArray
+    });
+}
 export function getUUIDList(serverID) {
     if (serverID === 0) {
         let playerList = [];
@@ -153,7 +184,7 @@ export function getUUIDList(serverID) {
         });*/
     } else if (serverID === 1) {
         return getWynncraft().then(async (data) => {
-            const maxSample = 100;
+            const maxSample = 500;
             let playersArray = [];
 
             if (data && data.players) {
