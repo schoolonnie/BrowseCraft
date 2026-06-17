@@ -14,14 +14,17 @@ export function createServerCard(serverData) {
     iconImg.className = "server-icon";
     card.appendChild(iconImg);
 
-    const info = document.createElement("div");
+    const info = document.createElement('div');
     info.className = "server-info";
 
-    const title = document.createElement("h2");
+    const title = document.createElement('h2');
     title.textContent = name;
     info.appendChild(title);
 
-    const ipButton = document.createElement("button");
+    const copyDiv = document.createElement('div');
+    copyDiv.classList.add('copy-div');
+
+    const ipButton = document.createElement('button');
     ipButton.classList.add('copy-btn');
     ipButton.addEventListener('click', () => {
         copyToClipboard('play.wynncraft.com', ipButton);
@@ -32,8 +35,15 @@ export function createServerCard(serverData) {
              width="16"
              height="16"
              src="../data/images/connect.png">
-    `
-    info.appendChild(ipButton);
+    `;
+
+    const copyMsg = document.createElement('p');
+    copyMsg.textContent = '<= Click to Copy IP';
+    copyMsg.classList.add('copy-msg');
+
+    copyDiv.appendChild(ipButton);
+    copyDiv.appendChild(copyMsg);
+    info.appendChild(copyDiv);
 
     const desc = document.createElement("p");
     desc.textContent = description;
@@ -153,14 +163,37 @@ export function createServerCard(serverData) {
 
                 const noCardListing = playerItem.innerHTML; // Store the original content to revert back to if needed
 
-                playerItem.addEventListener('click', () => {
-                    if (playerItem.classList.contains('not-showing')) {
-                        renderPlayerCard(username, 0);
+                playerItem.addEventListener('click', (e) => {
+                    if (e.target !== playerItem && !playerItem.querySelector('.stats-content')?.contains(e.target)) {
+                        return;
+                    }
+
+                    let statsContent = playerItem.querySelector('.stats-content');
+                    
+                    if (!statsContent) {
+                        statsContent = document.createElement('div');
+                        statsContent.classList.add('stats-content', 'not-showing');
+                        playerItem.appendChild(statsContent);
+
                         playerItem.classList.remove('not-showing');
-                    } else {
-                        playerItem.innerHTML = noCardListing;
-                        playerItem.classList.remove('player-card');
-                        playerItem.classList.add('not-showing');
+                        playerItem.classList.add('showing');
+                        
+                        renderPlayerCard(username, 0, statsContent);
+                        
+                        setTimeout(() => {
+                            statsContent.classList.remove('not-showing');
+                            statsContent.classList.add('showing');
+                        }, 10);
+
+                    } else if (statsContent.classList.contains('showing')) {
+                        statsContent.classList.remove('showing');
+                        statsContent.classList.add('not-showing');
+                        playerItem.classList.remove('showing');
+                        
+                        setTimeout(() => {
+                            statsContent.remove();
+                            playerItem.classList.add('not-showing');
+                        }, 400); 
                     }
                 });
             });
@@ -175,43 +208,42 @@ export function createServerCard(serverData) {
         }
     }
 
-function renderPaginationControls(start, total, perPage, list) {
-    pagination.innerHTML = '';
+    function renderPaginationControls(start, total, perPage, list) {
+        pagination.innerHTML = '';
 
-    const prev = document.createElement('button');
-    prev.innerHTML = '<img src="../data/images/left.webp" alt="Previous">';;
-    prev.disabled = currentPage === 1 || total === 0;
-    prev.addEventListener('click', () => { 
-        if (currentPage > 1) { 
-            currentPage--; 
-            renderPlayersPage(list); 
+        const prev = document.createElement('button');
+        prev.innerHTML = '<img src="../data/images/left.webp" alt="Previous">';;
+        prev.disabled = currentPage === 1 || total === 0;
+        prev.addEventListener('click', () => { 
+            if (currentPage > 1) { 
+                currentPage--; 
+                renderPlayersPage(list); 
+            }
+        });
+
+        const next = document.createElement('button');
+        next.innerHTML = '<img src="../data/images/right.webp" alt="Next">';
+        next.disabled = start + perPage >= total;
+        next.addEventListener('click', () => { 
+            if (start + perPage < total) { 
+                currentPage++; 
+                renderPlayersPage(list); 
+            }
+        });
+
+        const info = document.createElement('span');
+        if (total === 0) {
+            info.textContent = ' 0-0 of 0';
+        } else {
+            const displayStart = start + 1;
+            const displayEnd = Math.min(total, start + perPage);
+            info.textContent = ` ${displayStart}-${displayEnd} of ${total}`;
         }
-    });
 
-    const next = document.createElement('button');
-    next.innerHTML = '<img src="../data/images/right.webp" alt="Next">';
-    next.disabled = start + perPage >= total;
-    next.addEventListener('click', () => { 
-        if (start + perPage < total) { 
-            currentPage++; 
-            renderPlayersPage(list); 
-        }
-    });
-
-    const info = document.createElement('span');
-    if (total === 0) {
-        info.textContent = ' 0-0 of 0';
-    } else {
-        const displayStart = start + 1;
-        const displayEnd = Math.min(total, start + perPage);
-        info.textContent = ` ${displayStart}-${displayEnd} of ${total}`;
+        pagination.appendChild(prev);
+        pagination.appendChild(info);
+        pagination.appendChild(next);
     }
-
-    pagination.appendChild(prev);
-    pagination.appendChild(info);
-    pagination.appendChild(next);
-}
-
 
     playersArea.appendChild(playersList);
     playersArea.appendChild(pagination);
@@ -223,35 +255,38 @@ function renderPaginationControls(start, total, perPage, list) {
     playerSearch.id = 'search-bar';
     searchButton.textContent = 'Search!';
     searchButton.id = 'search-btn'
-    playerSearch.style.display = 'none';
-    searchButton.style.display = 'none';
+
+    playersArea.style.display = ''; 
+
+    const playersPanel = document.createElement('div');
+    playersPanel.classList.add('players-panel-wrapper');
+
+    playersPanel.appendChild(playerSearch);
+    playersPanel.appendChild(searchButton);
+    playersPanel.appendChild(playersArea);
 
     playersToggle.innerHTML = '<img src="../data/images/player.webp" alt="Players">';
     playersToggle.classList.add('players-toggle');
+    
     playersToggle.addEventListener('click', () => {
-        if (playersArea.style.display === 'none') {
-            playersArea.style.display = 'block';
-            playerSearch.style.display = 'block';
-            searchButton.style.display = 'block';
-
+        if (!playersPanel.classList.contains('panel-open')) {
             currentPage = 1;
             renderPlayersPage();
+
+            playersPanel.classList.add('panel-open');
         } else {
-            playersArea.style.display = 'none';
-            playerSearch.style.display = 'none';
-            searchButton.style.display = 'none';
+            playersPanel.classList.remove('panel-open');
         }
     });
 
     searchButton.addEventListener('click', () => {
         const searchInput = playerSearch.value;
-        console.log(searchInput)
-        renderPlayerCard(searchInput, 1)
+        console.log(searchInput);
+        renderPlayerCard(searchInput, 1);
     });
 
     info.appendChild(playersToggle);
-    info.appendChild(playerSearch);
-    info.appendChild(searchButton);
-    info.appendChild(playersArea);
-    return card
-};
+    info.appendChild(playersPanel); 
+    
+    return card;
+}

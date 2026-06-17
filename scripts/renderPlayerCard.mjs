@@ -1,10 +1,10 @@
 import { getPlayerBust, getPlayerBody, checkWynncraftV3 } from './utils.mjs';
 
-export function renderPlayerCard(player, search) {
+export function renderPlayerCard(player, search, targetContainer) {
     let thisCard = "";
 
     if (search === 0) {
-        thisCard = document.getElementById(`${player}-card`);
+        thisCard = targetContainer;
     } else if (search === 1) {
         thisCard = document.createElement('li')
         thisCard.classList.add(`${player}-card`)
@@ -26,20 +26,35 @@ export function renderPlayerCard(player, search) {
             return;
         }
 
+        thisCard.classList.add("player-card-container");
+        thisCard.classList.remove("not-showing");
+
         //append wynncraft stats to card
-        thisCard.innerHTML = `
-            <img src="${getPlayerBust(player)}" alt="${player}'s Bust" width="100" height="100" style="border-radius: 4px;">
-            <p class="username">Username: ${player}</p>
-            <p class="rank">Wynncraft Rank: ${stats.rank || 'N/A'}</p>
-            <p class="first-join">First Joined: ${stats.firstJoin ? new Date(stats.firstJoin).toLocaleDateString() : 'N/A'}</p>
-            <p class="playtime">Total Playtime: ${stats.playtime !== undefined ? stats.playtime + ' hours' : 'N/A'}</p>
-            <p class="chests-opened">Chests Opened: ${stats.globalData.chestsFound || 'N/A'}</p>
-            <p class="dungeons">Dungeons Completed: ${stats.globalData.dungeons.total || 'N/A'}</p>
-            <p class="raids">Raids Completed: ${stats.globalData.raids.total || 'N/A'}</p>
-            <p class="quests-completed">Quests Completed: ${stats.globalData.completedQuests || 'N/A'}</p>
-            <p class="pvp-kills">PvP Kills: ${stats.globalData.pvp.kills || 'N/A'}</p>
-            <p class="mob-kills">Mob Kills: ${stats.globalData.mobsKilled || 'N/A'}</p>
+        let cardHtmlString = `
+            <div class="card-layout-wrapper">
+                <img src="${getPlayerBust(player)}" alt="${player}'s Bust" class="bust-image">
+                <div class="stats-text-block">
+                    <p class="username">Username: ${player}</p>
+                    <p class="rank">Wynncraft Rank: ${stats.rank || 'N/A'}</p>
+                    <p class="first-join">First Joined: ${stats.firstJoin ? new Date(stats.firstJoin).toLocaleDateString() : 'N/A'}</p>
+                    <p class="playtime">Total Playtime: ${stats.playtime !== undefined ? stats.playtime + ' hours' : 'N/A'}</p>
+                    <p class="chests-opened">Chests Opened: ${stats.globalData.chestsFound || 'N/A'}</p>
+                    <p class="dungeons">Dungeons Completed: ${stats.globalData.dungeons.total || 'N/A'}</p>
+                    <p class="raids">Raids Completed: ${stats.globalData.raids.total || 'N/A'}</p>
+                    <p class="quests-completed">Quests Completed: ${stats.globalData.completedQuests || 'N/A'}</p>
+                    <p class="pvp-kills">PvP Kills: ${stats.globalData.pvp.kills || 'N/A'}</p>
+                    <p class="mob-kills">Mob Kills: ${stats.globalData.mobsKilled || 'N/A'}</p>
+                </div>
+            </div>
         `;
+        if (search === 1) {
+            thisCard.innerHTML = `
+                <p>Search Result:<p>
+            ` + cardHtmlString;
+        } else if (search == 0) {
+            thisCard.innerHTML = cardHtmlString;
+        }
+        
         thisCard.classList.add("player-card");
 
         if (search === 1) {
