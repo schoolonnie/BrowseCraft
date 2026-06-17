@@ -153,7 +153,7 @@ export function getUUIDList(serverID) {
         });*/
     } else if (serverID === 1) {
         return getWynncraft().then(async (data) => {
-            const maxSample = 50;
+            const maxSample = 100;
             let playersArray = [];
 
             if (data && data.players) {
