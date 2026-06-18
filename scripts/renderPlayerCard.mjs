@@ -1,8 +1,10 @@
 import { getPlayerBust, getPlayerBody, checkWynncraftV3 } from './utils.mjs';
 
+//this function is very extensive, it takes a player, a 0 or 1 for if it was searched, and the target container for where the card is to be built
 export function renderPlayerCard(player, search, targetContainer) {
     let thisCard = "";
 
+    //select the appropriate card or create one
     if (search === 0) {
         thisCard = targetContainer;
     } else if (search === 1) {
@@ -13,9 +15,11 @@ export function renderPlayerCard(player, search, targetContainer) {
         return;
     }
 
+    //this function is found in services.mjs, but just makes a simple API call with the username passed
     const data = checkWynncraftV3(player);
 
     data.then(stats => {
+        //if there is a problem with the data, it displays not available
         if (stats.error) {
             console.warn(`Wynncraft data not found for ${player}:`, stats.error);
             thisCard.innerHTML = `
@@ -29,7 +33,7 @@ export function renderPlayerCard(player, search, targetContainer) {
         thisCard.classList.add("player-card-container");
         thisCard.classList.remove("not-showing");
 
-        //append wynncraft stats to card
+        //append wynncraft stats to card if the response is good
         let cardHtmlString = `
             <div class="card-layout-wrapper">
                 <img src="${getPlayerBust(player)}" alt="${player}'s Bust" class="bust-image">
@@ -47,6 +51,7 @@ export function renderPlayerCard(player, search, targetContainer) {
                 </div>
             </div>
         `;
+        //if the username was searched, add this information to the top of the card to differentiate it
         if (search === 1) {
             thisCard.innerHTML = `
                 <div class="search-header-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -62,6 +67,7 @@ export function renderPlayerCard(player, search, targetContainer) {
         
         thisCard.classList.add("player-card");
 
+        //this is all logic for adding the favorite button to the searched player
         if (search === 1) {
             thisCard.id = "searched-card";
             const playersList = document.getElementById('players-list');
@@ -130,6 +136,7 @@ export function renderPlayerCard(player, search, targetContainer) {
             }
         }
 
+        //Here we catch errors that have to do with searching such as players that haven't joined the server or empty search bar entries
     }).catch(error => {
         const searchBar = document.getElementById('search-bar');
     

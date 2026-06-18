@@ -1,4 +1,5 @@
 export const MOJANG_API_BASE_URL = "https://api.mojang.com/";
+//Connect to local server if available, default to live
 export const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? "http://localhost:3000/api"
   : `${window.location.origin}/api`;
@@ -20,6 +21,23 @@ export async function get(url) {
   return convertToJson(response);
 }
 
+//In this function we pass GET requests through our Node.js backend URL, if we are running the local testing version it will pass through there, and pass through the live URL otherwise (see above)
+export async function getWynncraft(parameters) {
+  try {
+    let url = `${BACKEND_URL}/wynncraft`;
+    //Then encodes the parameters safely
+    if (parameters && parameters.username) {
+      url += `?username=${encodeURIComponent(parameters.username)}`;
+    }
+    const response = await fetch(url);
+    return convertToJson(response);
+  } catch (error) {
+    console.error("Wynncraft API error:", error);
+    throw error;
+  }
+}
+
+//legacy
 export async function getMojang(username) {
   try {
     let cleanUsername = username;
@@ -40,6 +58,7 @@ export async function getMojang(username) {
   }
 }
 
+//legacy
 export async function getMojangProfileFromUuid(uuid) {
   try {
     const response = await fetch(`${BACKEND_URL}/mojang?uuid=${encodeURIComponent(uuid)}`);
@@ -50,26 +69,13 @@ export async function getMojangProfileFromUuid(uuid) {
   }
 }
 
+//legacy
 export async function getHypixel(parameters) {
   try {
     const response = await fetch(`${BACKEND_URL}/hypixel?params=${encodeURIComponent(parameters)}`);
     return convertToJson(response);
   } catch (error) {
     console.error("Hypixel API error:", error);
-    throw error;
-  }
-}
-
-export async function getWynncraft(parameters) {
-  try {
-    let url = `${BACKEND_URL}/wynncraft`;
-    if (parameters && parameters.username) {
-      url += `?username=${encodeURIComponent(parameters.username)}`;
-    }
-    const response = await fetch(url);
-    return convertToJson(response);
-  } catch (error) {
-    console.error("Wynncraft API error:", error);
     throw error;
   }
 }

@@ -54,6 +54,7 @@ export async function getPlayerFaceUrl(uuid) {
     return `https://minotar.net/helm/${uuid}/32.png`;
 }
 
+//This function takes a list of uuids or usernames as input and returns a name, UUID, and avatarUrl (note: it should just be identifier and avatarUrl but did not have time to change it in all parts of the code, it functions just the same)
 export async function mapNamesToFaces(inputList) {
     const faceMap = {};
 
@@ -66,10 +67,11 @@ export async function mapNamesToFaces(inputList) {
             faceMap[identifier] = globalPlayerCache[identifier];
             return;
         }
-
+        //This is for testing whether or not a UUID was passed, everything passed through will be usernames, this was more for legacy version
         const isUuid = /[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}/i.test(identifier) || identifier.length > 16;
 
         if (!isUuid) {
+            //since they are all usernames, they are passed to this if statement where the avatar is set from the minotar API which fetches skin data
             const profile = {
                 name: identifier,
                 avatarUrl: `https://minotar.net/helm/${identifier}/32.png`,
@@ -117,7 +119,7 @@ export function getPlayerBody(username) {
         if (!username || username === '[object Object]') return null;
         return `https://minotar.net/armor/body/${username}/100.png`;
 }
-
+//legacy
 export async function checkHypixel(uuid) {
     try {
         const response = await getHypixel({ uuid });
@@ -137,7 +139,7 @@ export async function checkWynncraftV3(username) {
     return { online: false };
   }
 }
-
+//legacy
 export async function trackPlayer(username, serverIp) {
     console.log(`Searching for ${username} on ${serverIp}...`);
     
@@ -155,11 +157,13 @@ export async function trackPlayer(username, serverIp) {
     return { error: "Standard MCStatus fallback needed for this server IP." };
 }
 
+//This function calls the Wynncraft API (see in services.mjs) for a sample of players with a defined maximum size
 export function getNameList() {
     return getWynncraft().then(async (data) => {
             const maxSample = 500;
             let playersArray = [];
 
+            //Then the data is sliced to the maxSample size and returned as an array for later use
             if (data && data.players) {
                 const playerNames = Object.keys(data.players).slice(0, maxSample);
                 playersArray = playerNames;
@@ -168,6 +172,8 @@ export function getNameList() {
             return playersArray
     });
 }
+
+//legacy
 export function getUUIDList(serverID) {
     if (serverID === 0) {
         let playerList = [];
